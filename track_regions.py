@@ -1,12 +1,14 @@
 from __future__ import division, print_function
 import argparse
 import sys
+import csv
 import os
 
-import numpy as np
+import tensorflow as tf
+from PIL import Image
 import pandas
 
-from track import track_region
+from track import Tracker
 
 parser = argparse.ArgumentParser(
     description="Take the csv output from detection and containing photos then "
@@ -20,21 +22,34 @@ parser.add_argument("--dest", help="destinations of output csvs", type=str,
 # avoid printing TF debugging information
 # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-
 def main(args):
-    for i, r in enumerate(pandas.read_csv(args.csv).iterrows()):
-        outname = os.path.join(args.dest, args.csv + str(i) + ".csv")
-        file_name = os.path.join(args.dir, r["filename"])
+    with open(args.csv) as csv_file:
+        tracker = Tracker()
+        for i, r in enumerate(csv.DictReader(csv_file)):
+            out_filename = args.csv.replace(".csv", ".%i.csv" % i)
+            outname = os.path.join(args.dest, out_filename)
 
-        x = r["xmin"]
-        y = r["ymin"]
-        h = r["ymax"] - r["ymin"]
-        w = r["xmax"] - r["xmin"]
+            start_frame = os.path.join(args.source, r["filename"])
+            img_width, img_height = Image.open(start_frame).size
 
-        bboxes = track_region(file_name, x +  w / 2, y + h / 2, w, h)
+            x = int(float(r["xmax"]) * img_width)
+            y = int(float(r["ymax"]) * img_height)
+            h = int(y - float(r["ymin"]) * img_height)
+            w = int(x - float(r["xmin"]) * img_width)
 
-        df = pandas.DataFrame(bboxes, columns=("x", "y", "width", "height"))
-        df.write_csv(outname)
+            #@TODO: FILTER TO START ON SPECFIC FRAMES
+            print("INITIALIZING on", start_frame, args.source,
+                  "(xywh)", x, y, w, h)
+
+            bboxes = tracker.track_region(args.source, x, y, w, h)
+
+            # convert back to relative coordinates
+            bboxes[:, (0, 2)] /= img_width
+            bboxes[:, (1, 3)] /= img_height
+            bboxes.round(6, bboxes) # Round to 6 decimal points in-pace
+
+            df = pandas.DataFrame(bboxes, columns=("x", "y", "width", "height"))
+            df.to_csv(outname, index=False)
 
 
 if __name__ == '__main__':

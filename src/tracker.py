@@ -1,20 +1,17 @@
-
-import tensorflow as tf
-print('Using Tensorflow '+tf.__version__)
-import matplotlib.pyplot as plt
-import sys
-# sys.path.append('../')
-import os
-import csv
-import numpy as np
-from PIL import Image
 import time
 
+import matplotlib.pyplot as plt
+import tensorflow as tf
+import numpy as np
+
+from src.visualization import show_frame
 import src.siamese as siam
-from src.visualization import show_frame, show_crops, show_scores
+
+print('Using Tensorflow ' + tf.__version__)
 
 # read default parameters and override with custom ones
-def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, start_frame):
+def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h,
+            final_score_sz, filename, image, templates_z, scores, start_frame):
     num_frames = np.size(frame_name_list)
     # stores tracker's output for evaluation
     bboxes = np.zeros((num_frames,4))
@@ -28,12 +25,6 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
     context = design.context*(target_w+target_h)
     z_sz = np.sqrt(np.prod((target_w+context)*(target_h+context)))
     x_sz = float(design.search_sz) / design.exemplar_sz * z_sz
-
-    # thresholds to saturate patches shrinking/growing
-    min_z = hp.scale_min * z_sz
-    max_z = hp.scale_max * z_sz
-    min_x = hp.scale_min * x_sz
-    max_x = hp.scale_max * x_sz
 
     run_opts = {}
 
@@ -77,38 +68,47 @@ def tracker(hp, run, design, frame_name_list, pos_x, pos_y, target_w, target_h, 
                     filename: frame_name_list[i],
                 }, **run_opts)
             scores_ = np.squeeze(scores_)
+
             # penalize change of scale
-            scores_[0,:,:] = hp.scale_penalty*scores_[0,:,:]
-            scores_[2,:,:] = hp.scale_penalty*scores_[2,:,:]
+            scores_[0,:,:] = hp.scale_penalty * scores_[0, :, :]
+            scores_[2,:,:] = hp.scale_penalty * scores_[2, :, :]
+
             # find scale with highest peak (after penalty)
             new_scale_id = np.argmax(np.amax(scores_, axis=(1,2)))
+
             # update scaled sizes
             x_sz = (1-hp.scale_lr)*x_sz + hp.scale_lr*scaled_search_area[new_scale_id]        
             target_w = (1-hp.scale_lr)*target_w + hp.scale_lr*scaled_target_w[new_scale_id]
             target_h = (1-hp.scale_lr)*target_h + hp.scale_lr*scaled_target_h[new_scale_id]
+
             # select response with new_scale_id
             score_ = scores_[new_scale_id,:,:]
             score_ = score_ - np.min(score_)
             score_ = score_/np.sum(score_)
+
             # apply displacement penalty
             score_ = (1-hp.window_influence)*score_ + hp.window_influence*penalty
-            pos_x, pos_y = _update_target_position(pos_x, pos_y, score_, final_score_sz, design.tot_stride, design.search_sz, hp.response_up, x_sz)
+            pos_x, pos_y = _update_target_position(
+                pos_x, pos_y, score_, final_score_sz, design.tot_stride,
+                design.search_sz, hp.response_up, x_sz)
+
             # convert <cx,cy,w,h> to <x,y,w,h> and save output
             bboxes[i,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
+
             # update the target representation with a rolling average
             if hp.z_lr>0:
                 new_templates_z_ = sess.run([templates_z], feed_dict={
-                                                                siam.pos_x_ph: pos_x,
-                                                                siam.pos_y_ph: pos_y,
-                                                                siam.z_sz_ph: z_sz,
-                                                                image: image_
-                                                                })
+                    siam.pos_x_ph: pos_x,
+                    siam.pos_y_ph: pos_y,
+                    siam.z_sz_ph: z_sz,
+                    image: image_
+                })
 
                 templates_z_=(1-hp.z_lr)*np.asarray(templates_z_) + hp.z_lr*np.asarray(new_templates_z_)
             
             # update template patch size
             z_sz = (1-hp.scale_lr)*z_sz + hp.scale_lr*scaled_exemplar[new_scale_id]
-            
+
             if run.visualization:
                 show_frame(image_, bboxes[i,:], 1)        
 
@@ -137,5 +137,3 @@ def _update_target_position(pos_x, pos_y, score, final_score_sz, tot_stride, sea
     # *position* within frame in frame coordinates
     pos_y, pos_x = pos_y + disp_in_frame[0], pos_x + disp_in_frame[1]
     return pos_x, pos_y
-
-
