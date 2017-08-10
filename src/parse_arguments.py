@@ -1,27 +1,35 @@
-import json
 from collections import namedtuple
+import json
+import os
+
+parameters_dir = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), "../parameters")
 
 
-def parse_arguments(in_hp={}, in_evaluation={}, in_run={}):
+def load_parameters(file_name):
+    with open(os.path.join(parameters_dir, file_name)) as json_file:
+        return json.load(json_file)
 
-    with open('parameters/hyperparams.json') as json_file:
-        hp = json.load(json_file)
-    with open('parameters/evaluation.json') as json_file:
-        evaluation = json.load(json_file)
-    with open('parameters/run.json') as json_file:
-        run = json.load(json_file)
-    with open('parameters/environment.json') as json_file:
-        env = json.load(json_file)
-    with open('parameters/design.json') as json_file:
-        design = json.load(json_file)                
 
-    for name,value in in_hp.iteritems():
-        hp[name] = value
-    for name,value in in_evaluation.iteritems():
-        evaluation[name] = value
-    for name,value in in_run.iteritems():
-        run[name] = value
-    
+def parse_arguments(in_hp=None, in_evaluation=None, in_run=None):
+    """
+    Return hyperparameter, evaluation, run, env, and design config named tuples
+    """
+    in_hp = {}         if in_hp         is None else in_hp 
+    in_evaluation = {} if in_evaluation is None else in_evaluation
+    in_run = {}        if in_run        is None else in_run
+
+    hp = load_parameters("hyperparams.json")
+    evaluation = load_parameters("evaluation.json")
+    run = load_parameters("run.json")
+    env = load_parameters("environment.json")
+    design = load_parameters("design.json")
+
+    hp.update(in_hp)
+    evaluation.update(in_evaluation)
+    run.update(in_run)
+
+    # Wrap dicts into named tuples
     hp = namedtuple('hp', hp.keys())(**hp)
     evaluation = namedtuple('evaluation', evaluation.keys())(**evaluation)
     run = namedtuple('run', run.keys())(**run)
