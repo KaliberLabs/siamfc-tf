@@ -1,10 +1,13 @@
+"""
+This code was originally written for Py2. If you get a weird error, try with Py2.
+"""
 from __future__ import division, print_function
 import argparse
 import sys
 import os
 
 from src.parse_arguments import parse_arguments
-from src.tracker import tracker
+from src.tracker import tracker as run_tracker
 import src.siamese as siam
 
 parser = argparse.ArgumentParser()
@@ -17,13 +20,15 @@ parser.add_argument("-s", "--source", help="dir of frame .jpgs",
 
 
 def main(args):
-    # avoid printing TF debugging information
-    # os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-    tracky = Tracker()
-    tracky.track_region(args.source, args.x, args.y, args.w, args.h)
+    tracker = Tracker()
+    tracker.track_region(args.source, args.x, args.y, args.w, args.h)[0]
 
 
-class Tracker:
+class Tracker(object):
+    """
+    Tracker objects contain a nueral network that can be used for tracking
+    Regions Of Interest.
+    """
     def __init__(self):
         self.hyperparameters, self.evaluation, self.run, self.env, self.design = \
             parse_arguments()
@@ -31,22 +36,31 @@ class Tracker:
         self.final_score_sz = self.hyperparameters.response_up * (
             self.design.score_sz - 1) + 1
 
-        # build TF graph once for all
+        # build TF graph
         self.filename, self.image, self.templates_z, self.scores = \
             siam.build_tracking_graph(self.final_score_sz, self.design, self.env)
 
     def track_region(self, source, x, y, w, h, start_frame=0):
+        """
+        Take a directory of photos and track a region denoted by x y coordinates
+        and its width and height. The sorted order of the filenames must
+        coorespond to sequence in the video. The start_frame determines which
+        frame to start at.
+
+        Returns a (Nx4) numpy array of bounding boxes and the names of the frames
+        in the directory.
+        """
         frame_names = [os.path.join(source, f)
                        for f in os.listdir(source) if f.endswith(".jpg")]
 
-        assert len(frame_names) > 0, ".jpg files found in " + source
+        assert len(frame_names) > 0, "No .jpg files found in " + source
 
         frame_names.sort()
 
         center_x = x + w / 2
         center_y = y + h / 2
 
-        bboxes, speed = tracker(
+        bboxes, speed = run_tracker(
             hp=self.hyperparameters,
             run=self.run,
             design=self.design,
@@ -64,8 +78,8 @@ class Tracker:
 
         print(self.evaluation.video + ' -- Speed: ' + "%.2f" % speed + ' --')
 
-        return bboxes
+        return bboxes, frame_names
 
 
-if __name__ == '__main__':
-    sys.exit(main(args = parser.parse_args()))
+if __name__ == "__main__":
+    sys.exit(main(args=parser.parse_args()))
