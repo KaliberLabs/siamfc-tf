@@ -3,5 +3,6 @@ pretrained/
 *.ipynb_checkpoints
 *.pyc
 *.swp
+.vscode
 notebooks/*
 .idea
