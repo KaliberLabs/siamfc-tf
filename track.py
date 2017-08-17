@@ -10,7 +10,8 @@ from src.parse_arguments import parse_arguments
 from src.tracker import tracker as run_tracker
 import src.siamese as siam
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(
+    description="Track a region of interest across the frames in a directory.")
 parser.add_argument("--x", type=int, required=True)
 parser.add_argument("--y", type=int, required=True)
 parser.add_argument("--w", type=int, required=True)

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 This code was originally written for Py2. If you get a weird error, try with Py2.
 """
@@ -14,17 +15,16 @@ from track import Tracker
 
 parser = argparse.ArgumentParser(
     description="Take the csv from person detection and"
-                "output a csv of positions across time")
+                "output a directory of csvs of positions across time")
 parser.add_argument("-i", "--input", type=str, required=True)
 parser.add_argument("--source", help="dir of frame .jpgs", type=str,
-                    required=True, dest="input")
+                    required=True, dest="source")
 parser.add_argument("-o", "--output-dir", help="destinations of output csvs",
                     type=str, required=True, dest="output_dir")
 parser.add_argument("--relative", dest="relative", action="store_true",
                     default=False,
                     help="Output relative coordinates")
-parser.add_argument("--start-frame", default=0,
-                    help="frame to start at starting at 0")
+parser.add_argument("--start-frame", default=0, help="frame to begin tracking at")
 parser.add_argument("--tensor-flow-log-level", default=3, type=int)
 
 
@@ -37,8 +37,7 @@ def main(args):
     with open(args.input) as csv_file:
         tracker = Tracker()
         for i, row in enumerate(csv.DictReader(csv_file)):
-            out_filename = args.input.replace(".csv", ".%i.csv" % i)
-            out_path = os.path.join(args.output_dir, out_filename)
+            out_path = os.path.join(args.output_dir, "%i.csv" % i)
 
             start_frame = os.path.join(args.source, row["filename"])
             img_width, img_height = Image.open(start_frame).size
@@ -61,9 +60,8 @@ def main(args):
 
             df = pandas.DataFrame(bboxes, columns=("x", "y", "width", "height"))
             df["filename"] = frames
-            df["index"] = df["filename"].map(os.path.basename
-                                            ).str.replace(".jpg", "").astype(int)
-            df.to_csv(out_path, index=False)
+
+            df.to_csv(out_path, index=True, index_label="frame")
 
 
 if __name__ == "__main__":
