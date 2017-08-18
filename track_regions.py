@@ -42,10 +42,10 @@ def main(args):
             start_frame = os.path.join(args.source, row["filename"])
             img_width, img_height = Image.open(start_frame).size
 
-            x = int(float(row["xmax"]) * img_width)
-            y = int(float(row["ymax"]) * img_height)
-            h = int(y - float(row["ymin"]) * img_height)
-            w = int(x - float(row["xmin"]) * img_width)
+            x = int(float(row["xmin"]) * img_width)
+            y = int(float(row["ymin"]) * img_height)
+            h = int((float(row["ymax"]) - y) * img_height)
+            w = int((float(row["xmax"]) - x) * img_width)
 
             print("Processing", args.start_frame, "(x y w h)", x, y, w, h)
 

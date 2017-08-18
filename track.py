@@ -44,9 +44,9 @@ class Tracker(object):
     def track_region(self, source, x, y, w, h, start_frame=0):
         """
         Take a directory of photos and track a region denoted by x y coordinates
-        and its width and height. The sorted order of the filenames must
-        coorespond to sequence in the video. The start_frame determines which
-        frame to start at.
+        of its top-left corner and its width and height. The sorted order of the
+        filenames must coorespond to sequence in the video. The start_frame
+        determines which frame to start at.
 
         Returns a (Nx4) numpy array of bounding boxes and the names of the frames
         in the directory.
